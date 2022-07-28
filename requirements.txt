@@ -1,0 +1,6 @@
+beautifulsoup4==4.11.1
+numpy==1.23.1
+opencv_python==4.6.0.66
+python_telegram_bot==13.13
+requests==2.28.1
+telegram==0.0.1
