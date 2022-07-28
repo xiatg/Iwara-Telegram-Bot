@@ -1,6 +1,6 @@
 # Iwara-Telegram-Bot
 
-A Python-based Telegram Bot that can download videos from [ecchi.iwara.tv](https://ecchi.iwara.tv/) and send to a certain chat.
+A Python Telegram Bot that can download videos from [ecchi.iwara.tv](https://ecchi.iwara.tv/) and send to a certain chat.
 
 ## Features
 
@@ -24,7 +24,7 @@ option can be:
 
 - A [Telegram Bot](https://core.telegram.org/bots/) (Token)
 - A Telegram Chat ID
-- A [Local Bot API Server](https://core.telegram.org/bots/api#using-a-local-bot-api-server) (Server Url)
+- A [Local Bot API Server](https://core.telegram.org/bots/api#using-a-local-bot-api-server) (Server url)
   <!-- - Iwara videos with resolution of `Source` are usually larger than 50 MB. -->
 
 ### macOS, Ubuntu
@@ -47,7 +47,7 @@ pip install -r requirements.txt
     "telegram_info" : {
         "token" : <Your Bot API Token>,
         "chat_id" : <Your Chat ID>,
-        "APIServer" : <Your Bot API Server Url>
+        "APIServer" : <Your Bot API Server url>
     }
 }
 ```

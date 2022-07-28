@@ -153,5 +153,6 @@ cython_debug/
 .DS_Store
 *.json
 *.mp4
+*.jpg
 *.ipynb
 .idea
