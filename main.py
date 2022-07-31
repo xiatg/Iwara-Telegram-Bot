@@ -151,14 +151,18 @@ class IwaraTgBot:
                     v_tag = tag.string.replace(' ', '_')
                     v_tags.append(v_tag)
 
-        thumbUrl = "http:" + videoPage.find(id = "video-player").get("poster")
+        try:
+            thumbUrl = "http:" + videoPage.find(id = "video-player").get("poster")
+        except:
+            print("The video is hosted by YouTube. No thumbnail is available on iwara.tv.")
+        
         thumbFileName = id + ".jpg"
 
         if (os.path.exists(thumbFileName)):
             print("Thumbnail ID {} Already downloaded, skipped downloading. ".format(id))
         else:
-            print("Downloading thumbnail for video ID: {} from {}...".format(id, thumbUrl))
             try:
+                print("Downloading thumbnail for video ID: {} from {}...".format(id, thumbUrl))
                 with open(thumbFileName, "wb") as f:
                             for chunk in requests.get(thumbUrl, headers = self.headers).iter_content(chunk_size=1024):
                                 if chunk:
@@ -230,6 +234,35 @@ class IwaraTgBot:
         except: # Download Failed
             return None
 
+    def get_youtube_id(self, id):
+        videoHTML = self.session.get(self.videoUrl + '/' + id, headers = self.headers).text
+        videoPage = BeautifulSoup(videoHTML, "html.parser")
+        video_frame = videoPage.find("iframe")
+        video_source = video_frame.get("src")
+        start = video_source.find("embed/") + 6
+        end = video_source.find("?")
+        video_id = video_source[start:end]
+        return video_id
+        
+    def send_yt_link(self, yt_id, id = "", title = "", user = "", user_display = "", description = "", v_tags = []):
+        
+        yt_link = "https://www.youtube.com/watch?v=" + yt_id
+
+        caption = yt_link + """
+<a href="{}/{}/">{}</a>
+by: <a href="{}/{}/">{}</a>
+""".format(self.videoUrl, id, title, self.userUrl, user, user_display)
+        for v_tag in v_tags:
+            caption += " #" + v_tag
+
+        print(caption)
+
+        msg = None
+
+        msg = self.bot.send_message(chat_id = self.config["telegram_info"]["chat_id"], text = caption, parse_mode = "HTML")
+
+        return msg.message_id
+
     def send_video(self, path, id = "", title = "", user = "", user_display = "", description = "", v_tags = [], thumbPath = ""):
         # Sending video to telegram
         print("Sending video {} to telegram...".format(path))
@@ -284,6 +317,8 @@ by: <a href="{}/{}/">{}</a>
         msg_t = self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = "Getting message ID...")
         self.bot.delete_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], message_id= msg_t.message_id)
 
+        print(msg_t.message_id)
+
         msg_description = """
 <a href="{}/{}/">{}</a> said:
 """.format(self.userUrl, user, user_display) + description
@@ -315,11 +350,17 @@ by: <a href="{}/{}/">{}</a>
                 continue
 
             video_info = self.get_video_info(id)
-            videoFileName = self.download_video(id)
 
-            if (videoFileName == None):
-                print("Video ID {} Download failed, skipped. ".format(id))
-                continue
+            yt_id = None
+
+            try: # if the video is hosted on YouTube
+                yt_id = self.get_youtube_id(id)
+            except:
+                videoFileName = self.download_video(id)
+
+                if (videoFileName == None):
+                    print("Video ID {} Download failed, skipped. ".format(id))
+                    continue
 
             title = video_info[0]
             user = video_info[1]
@@ -328,11 +369,15 @@ by: <a href="{}/{}/">{}</a>
             v_tags = video_info[4]
             thumbFileName = video_info[5]
 
-            msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
-            time.sleep(5) # Wait for telegram to forward the video to the group
-            self.send_description(user, user_display, description)
+            if (yt_id == None):
+                msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
+            else:
+                msg_id = self.send_yt_link(yt_id, id, title, user, user_display, description, v_tags)
 
             self.save_video_info(tableName, id, title, user, user_display, msg_id)
+
+            time.sleep(5) # Wait for telegram to forward the video to the group
+            self.send_description(user = user, user_display = user_display, description = description)
 
     def download_sub(self):
 
