@@ -6,10 +6,13 @@ Iwara-Telegram-Bot: your ultimate [Python-Telegram-Bot](https://github.com/pytho
 
 ## Features
 ```
-Usage: python main.py <option>
-option can be:
-    dlsub: download the latest page of From people you follow
-    dlnew: download the latest page of recent videos
+Usage: python {} <mode> <request>
+mode can be:
+-n/normal: normal mode
+-e/ecchi: ecchi mode (NSFW)
+request can be:
+dlsub: download the latest page of your subscription list
+dlnew: download the latest page of the new videos
 ```
 
 <!-- ✅ - Published  
@@ -68,11 +71,11 @@ pip install -r requirements.txt
 ```
 4. Bon Appétit
 ```
-Usage: python main.py <option>
-option can be:
-    dlsub: download the latest page of your subscription list
-    dlnew: download the latest page of the new videos
+Usage: python {} <mode> <request>
+mode can be:
+-n/normal: normal mode
+-e/ecchi: ecchi mode (NSFW)
+request can be:
+dlsub: download the latest page of your subscription list
+dlnew: download the latest page of the new videos
 ```
-
-
-

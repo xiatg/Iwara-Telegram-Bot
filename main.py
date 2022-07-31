@@ -12,17 +12,25 @@ from telegram.ext import Updater
 import cv2
 
 class IwaraTgBot:
-    def __init__(self):
+    def __init__(self, ecchi = False):
         self.headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
         }
 
-        self.loginUrl ='https://ecchi.iwara.tv/user/login'
-        self.subUrl = 'https://ecchi.iwara.tv/subscriptions'
-        self.videoUrl = 'https://ecchi.iwara.tv/videos'
-        self.userUrl =  'https://ecchi.iwara.tv/users'
-        self.videoAPIUrl = 'https://ecchi.iwara.tv/api/video'
-        self.newUrl = 'https://ecchi.iwara.tv/videos-3'
+        if (ecchi):
+            self.loginUrl ='https://ecchi.iwara.tv/user/login'
+            self.subUrl = 'https://ecchi.iwara.tv/subscriptions'
+            self.videoUrl = 'https://ecchi.iwara.tv/videos'
+            self.userUrl =  'https://ecchi.iwara.tv/users'
+            self.videoAPIUrl = 'https://ecchi.iwara.tv/api/video'
+            self.newUrl = 'https://ecchi.iwara.tv/videos-3'
+        else:
+            self.loginUrl ='https://iwara.tv/user/login'
+            self.subUrl = 'https://iwara.tv/subscriptions'
+            self.videoUrl = 'https://iwara.tv/videos'
+            self.userUrl =  'https://iwara.tv/users'
+            self.videoAPIUrl = 'https://iwara.tv/api/video'
+            self.newUrl = 'https://iwara.tv/videos-3'
 
         #Load Config
         self.config = json.load(open("config.json"))
@@ -367,15 +375,19 @@ if __name__ == '__main__':
         print("""
 Usage: python {} <option>
 option can be:
-\t dlsub: download the latest page of your subscription list
-\t dlnew: download the latest page of the new videos
+\t -n/normal: normal mode
+\t -e/ecchi: ecchi mode (NSFW)
+\t \t -n/-e dlsub: download the latest page of your subscription list
+\t \t -n/-e dlnew: download the latest page of the new videos
         """.format(args[0]))
         exit(1)
 
-    if (len(args) != 2): usage()
+    if (len(args) < 2 or len(args) > 3): usage()
 
-    bot = IwaraTgBot()
+    if (args[1] == "-n" or args[1] == "normal"): bot = IwaraTgBot()
+    elif (args[1] == "-e" or args[1] == "ecchi"): bot = IwaraTgBot(ecchi = True)
+    else: usage()
 
-    if (args[1] == "dlsub"): bot.download_sub()
-    elif (args[1] == "dlnew"): bot.download_new()
+    if (args[2] == "dlsub"): bot.download_sub()
+    elif (args[2] == "dlnew"): bot.download_new()
     else: usage()
