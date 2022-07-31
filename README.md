@@ -1,31 +1,45 @@
 # Iwara-Telegram-Bot
 
-A Python Telegram Bot that can download videos from [ecchi.iwara.tv](https://ecchi.iwara.tv/) and send to a certain chat.
+Iwara-Telegram-Bot: your ultimate [Python-Telegram-Bot](https://github.com/python-telegram-bot/python-telegram-bot) that connects [iwara.tv](https://iwara.tv/) and [Telegram](https://telegram.org/).
+
+## Demo
 
 ## Features
-
 ```
 Usage: python main.py <option>
 option can be:
-    dlsub: download the latest page of your subscription list
+    dlsub: download the latest page of From people you follow
+    dlnew: download the latest page of recent videos
 ```
 
 <!-- ✅ - Published  
 🚧 - In Progress  
 💡 - Planned   -->
 
-1. ✅ `dlsub` - Subscription Tracker
-   - Download all videos in the first page of your subscription.
-   - Maintain a `sent_list.json` to track all videos that have been already sent to the chat.
+1. ✅ `dlsub` - Download Subscribed
+   - Send all videos in the first page of [From people you follow](https://iwara.tv/subscriptions) to a Telegram **chat**.
+   - Maintain a `IwaraTgDB.db` to track all videos that have already been sent to the chat.
+2. ✅ `dlnew` - Download New
+   - Send all videos in the first page of [Recent videos](https://www.iwara.tv/videos) to a Telegram **channel**.
+   - Maintain a `IwaraTgDB.db` to track all videos that have already been sent to the channel.
+   - Add the video description to the comment section of the post.
 
 ## Deployment
 
 ### Prerequisite
 
 - A [Telegram Bot](https://core.telegram.org/bots/) (Token)
-- A Telegram Chat ID
 - A [Local Bot API Server](https://core.telegram.org/bots/api#using-a-local-bot-api-server) (Server url)
   <!-- - Iwara videos with resolution of `Source` are usually larger than 50 MB. -->
+
+#### To use `dlsub` for your bot
+
+- The chat ID of the conversation between you and your bot
+
+#### To use `dlnew` for your Telegram channel
+
+- The chat ID of your Telegram channel
+- The chat ID of the linked discussion group of your Telegram channel
 
 ### macOS, Ubuntu
 
@@ -46,14 +60,18 @@ pip install -r requirements.txt
     },
     "telegram_info" : {
         "token" : <Your Bot API Token>,
-        "chat_id" : <Your Chat ID>,
+        "chat_id" : <The chat ID of your bot or channel>,
+        "chat_id_discuss": <The chat ID of the linked discussion group>,
         "APIServer" : <Your Bot API Server url>
     }
 }
 ```
 4. Bon Appétit
 ```
-python main.py <option>
+Usage: python main.py <option>
+option can be:
+    dlsub: download the latest page of your subscription list
+    dlnew: download the latest page of the new videos
 ```
 
 

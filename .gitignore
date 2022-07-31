@@ -156,3 +156,4 @@ cython_debug/
 *.jpg
 *.ipynb
 .idea
+*.db

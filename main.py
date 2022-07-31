@@ -1,14 +1,14 @@
-from distutils.command.upload import upload
 import os
 import sys
 import json
 import re
+import time
+from datetime import datetime
+import sqlite3
 
 import requests
 from bs4 import BeautifulSoup
-from telegram import Update
-from telegram.ext import Updater, CallbackContext, CommandHandler
-import numpy
+from telegram.ext import Updater
 import cv2
 
 class IwaraTgBot:
@@ -27,10 +27,14 @@ class IwaraTgBot:
         #Load Config
         self.config = json.load(open("config.json"))
 
+        #Init DB
+        self.DBpath = "IwaraTgDB.db"
+
         #Setup telegram bot
         print("Connecting to telegram bot...")
         self.updater = Updater(self.config["telegram_info"]["token"], base_url = self.config["telegram_info"]["APIServer"])
-        botInfo = self.updater.bot.getMe()
+        self.bot = self.updater.bot
+        botInfo = self.bot.getMe()
         print("Connected to telegram bot: " + botInfo.first_name)
 
         #Main Session
@@ -63,6 +67,57 @@ class IwaraTgBot:
         print("Logging in...")
         self.session.post(self.loginUrl, data=data, headers=self.headers)
 
+    def connect_DB(self):
+        conn = sqlite3.connect(self.DBpath)
+        c = conn.cursor()
+        return c, conn
+    
+    def close_DB(self, conn):
+        conn.commit()
+        conn.close()
+
+    def init_DB(self, tableName):
+        c, conn = self.connect_DB()
+
+        c.execute("""CREATE TABLE IF NOT EXISTS """ + tableName + """ (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            user TEXT,
+            user_display TEXT,
+            date TEXT,
+            chat_id INTEGER,
+            views INTEGER,
+            likes INTEGER
+        )""")
+
+        self.close_DB(conn)
+
+    def save_video_info(self, tableName, id, title = None, user = None, user_display = None, chat_id = None, views = None, likes = None):
+        """
+        Save video info to database.
+        """
+        c, conn = self.connect_DB()
+
+        c.execute("""INSERT INTO """ + tableName + """ (id, title, user, user_display, date, chat_id, views, likes) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (id, title, user, user_display, datetime.now().strftime("%Y%m%d"), chat_id, views, likes,))
+        
+        self.close_DB(conn)
+
+    def is_video_exist(self, tableName, id):
+        c, conn = self.connect_DB()
+
+        c.execute("SELECT * FROM " + tableName + " WHERE id = ?", (id,))
+        if c.fetchone() is None:
+            result = False
+        else:
+            result =  True
+
+        self.close_DB(conn)
+
+        return result
+
     def get_video_info(self, id):
         """
         Get video info by id.
@@ -81,7 +136,7 @@ class IwaraTgBot:
 
         a_tags = videoPage.find_all("a")
 
-        v_tags = []
+        v_tags = [user_display.replace(' ', '_').replace('\u3000', '_')]
         for tag in a_tags:
             if tag.get("href") != None:
                 if "categories" in tag.get("href"):
@@ -94,14 +149,33 @@ class IwaraTgBot:
         if (os.path.exists(thumbFileName)):
             print("Thumbnail ID {} Already downloaded, skipped downloading. ".format(id))
         else:
-            print("Downloading thumbnail for video ID: {} ...".format(id))
-            with open(thumbFileName, "wb") as f:
-                        for chunk in requests.get(thumbUrl, headers = self.headers).iter_content(chunk_size=1024):
-                            if chunk:
-                                f.write(chunk)
-                                f.flush()
+            print("Downloading thumbnail for video ID: {} from {}...".format(id, thumbUrl))
+            try:
+                with open(thumbFileName, "wb") as f:
+                            for chunk in requests.get(thumbUrl, headers = self.headers).iter_content(chunk_size=1024):
+                                if chunk:
+                                    f.write(chunk)
+                                    f.flush()
+            except:
+                print("Failed to download thumbnail. Skipping...")
+                if (os.path.exists(thumbFileName)):
+                    os.remove(thumbFileName)
 
         return [title, user, user_display, description, v_tags, thumbFileName]
+
+    def get_video_stat(self, id):
+        """
+        Get video stat by id.
+        The stat is returned as a list.
+        """
+        videoHTML = self.session.get(self.videoUrl + '/' + id, headers = self.headers).text
+        videoPage = BeautifulSoup(videoHTML, "html.parser")
+
+        stats = videoPage.find("div", class_ = "node-views").text.replace("\n", "").replace("\t", "").replace(",", "").split(" ")
+        likes = int(stats[1])
+        views = int(stats[2])
+
+        return [likes, views]
 
     def find_videos(self, html):
         fullpage = BeautifulSoup(html, "html.parser")
@@ -143,8 +217,10 @@ class IwaraTgBot:
                             f.write(chunk)
                             f.flush()
                 break
-        
-        return videoFileName
+        try:
+            return videoFileName
+        except: # Download Failed
+            return None
 
     def send_video(self, path, id = "", title = "", user = "", user_display = "", description = "", v_tags = [], thumbPath = ""):
         # Sending video to telegram
@@ -169,7 +245,7 @@ by: <a href="{}/{}/">{}</a>
         msg = None
 
         if (os.path.exists(thumbPath) == False):
-            msg = self.updater.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
+            msg = self.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
                                 video = open(path, 'rb'), 
                                 supports_streaming = True, 
                                 timeout = 300, 
@@ -179,7 +255,7 @@ by: <a href="{}/{}/">{}</a>
                                 caption = caption,
                                 parse_mode = "HTML")
         else:
-            msg = self.updater.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
+            msg = self.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
                                 video = open(path, 'rb'), 
                                 supports_streaming = True, 
                                 timeout = 300, 
@@ -196,8 +272,22 @@ by: <a href="{}/{}/">{}</a>
 
         return msg.message_id
 
+    def send_description(self, user, user_display, description):
+        msg_t = self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = "Getting message ID...")
+        self.bot.delete_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], message_id= msg_t.message_id)
+
+        msg_description = """
+<a href="{}/{}/">{}</a> said:
+""".format(self.userUrl, user, user_display) + description
+
+        self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = msg_description, parse_mode = "HTML", reply_to_message_id=msg_t.message_id - 1)
+
     def download_new(self):
 
+        tableName = "videosNew"
+
+        self.init_DB(tableName)
+        
         self.login()
 
         #Get page
@@ -209,8 +299,19 @@ by: <a href="{}/{}/">{}</a>
 
         #Download videos
         for id in ids:
+
+            print("Found video ID {}".format(id))
+
+            if (self.is_video_exist(tableName, id)):
+                print("Video ID {} Already sent, skipped. ".format(id))
+                continue
+
             video_info = self.get_video_info(id)
             videoFileName = self.download_video(id)
+
+            if (videoFileName == None):
+                print("Video ID {} Download failed, skipped. ".format(id))
+                continue
 
             title = video_info[0]
             user = video_info[1]
@@ -219,25 +320,17 @@ by: <a href="{}/{}/">{}</a>
             v_tags = video_info[4]
             thumbFileName = video_info[5]
 
-            self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
+            msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
+            time.sleep(5) # Wait for telegram to forward the video to the group
+            self.send_description(user, user_display, description)
+
+            self.save_video_info(tableName, id, title, user, user_display, msg_id)
 
     def download_sub(self):
 
-        def load_sent_list():
-            if (os.path.exists("sent_list.json") == False):
-                with open("sent_list.json", "w+") as f: # Create if not exist
-                    json.dump([], f)
+        tableName = "videosSub"
 
-            with open("sent_list.json", "r") as f:
-                return json.load(f)
-
-        def save_sent_list(sent_list):
-            with open("sent_list.json", "w") as f:
-                    json.dump(sent_list, f)
-
-        #Load sent list
-        print("Loading sent list...")
-        self.sent_list = load_sent_list()
+        self.init_DB(tableName)
 
         self.login()
 
@@ -249,7 +342,7 @@ by: <a href="{}/{}/">{}</a>
             
             print("Found video ID {}".format(id))
 
-            if (id in self.sent_list):
+            if (self.is_video_exist(tableName, id)):
                 print("Video ID {} Already sent, skipped. ".format(id))
                 continue
 
@@ -265,10 +358,7 @@ by: <a href="{}/{}/">{}</a>
 
             self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
             
-            #Save sent list
-            print("Saving sent list...")
-            self.sent_list.append(id)
-            save_sent_list(self.sent_list)
+            self.save_video_info(tableName, id, title, user, user_display, None)
 
 if __name__ == '__main__':
     args = sys.argv
