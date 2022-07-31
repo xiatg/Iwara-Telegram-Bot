@@ -400,7 +400,17 @@ by: <a href="{}/{}/">{}</a>
                 continue
 
             video_info = self.get_video_info(id)
-            videoFileName = self.download_video(id)
+            
+            yt_id = None
+
+            try: # if the video is hosted on YouTube
+                yt_id = self.get_youtube_id(id)
+            except:
+                videoFileName = self.download_video(id)
+
+                if (videoFileName == None):
+                    print("Video ID {} Download failed, skipped. ".format(id))
+                    continue
 
             title = video_info[0]
             user = video_info[1]
@@ -409,7 +419,10 @@ by: <a href="{}/{}/">{}</a>
             v_tags = video_info[4]
             thumbFileName = video_info[5]
 
-            self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
+            if (yt_id == None):
+                msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
+            else:
+                msg_id = self.send_yt_link(yt_id, id, title, user, user_display, description, v_tags)
             
             self.save_video_info(tableName, id, title, user, user_display, None)
 
