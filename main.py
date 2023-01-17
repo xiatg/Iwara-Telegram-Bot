@@ -4,6 +4,7 @@ import json
 import re
 import time
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import sqlite3
 
 import requests
@@ -109,7 +110,7 @@ class IwaraTgBot:
         c.execute("""INSERT INTO """ + tableName + """ (id, title, user, user_display, date, chat_id, views, likes) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (id, title, user, user_display, datetime.now().strftime("%Y%m%d"), chat_id, views, likes,))
+        (id, title, user, user_display, int(datetime.now().strftime("%Y%m%d")), chat_id, views, likes,))
         
         self.close_DB(conn)
 
@@ -325,6 +326,22 @@ by: <a href="{}/{}/">{}</a>
 
         self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = msg_description, parse_mode = "HTML", reply_to_message_id=msg_t.message_id - 1)
 
+    def update_stat_after(self, date, tableName):
+        c, conn = self.connect_DB()
+
+        c.execute("""SELECT id FROM """ + tableName + " WHERE date >= ?", (date,))
+        entries = c.fetchall()
+
+        for (id,) in entries:
+
+            try:
+                (likes, views) = self.get_video_stat(id)
+                c.execute("""UPDATE """ + tableName + " SET likes = ?, views = ? WHERE id = ?", (likes, views, id))
+            except:
+                pass
+
+        self.close_DB(conn)
+
     def download_new(self):
 
         tableName = "videosNew"
@@ -426,21 +443,86 @@ by: <a href="{}/{}/">{}</a>
             
             self.save_video_info(tableName, id, title, user, user_display, None)
 
+    def send_ranking(self, title, entries):
+
+        ranking_description = f"""#{title}
+"""
+
+        for i in range(1, len(entries)+1):
+            (title, user_display, chat_id, likes, views, heats,) = entries[i-1]
+            ranking_description += f"""
+Top {i} ❤️{likes} 🔥{views}
+<a href="https://t.me/iwara2/{chat_id}">{title}</a> by {user_display}"""
+
+        self.bot.send_message(chat_id=self.config["telegram_info"]["ranking_id"], text = ranking_description, parse_mode = "HTML")
+
+    def ranking(self, type = "DAILY"):
+
+        tableName = "videosNew"
+
+        today = datetime.today()
+        yesterday = today - relativedelta(days = 1)
+        oneweekago = today - relativedelta(days = 7)
+        onemonthago = today - relativedelta(months = 1)
+        oneyearago = today - relativedelta(years = 1)
+
+        date = None
+        title = None
+        if (type == "DAILY"):
+            date = yesterday
+            title = f"""Daily Ranking 每日排行榜
+""" + today.strftime("%Y-%m-%d")
+        elif (type == "WEEKLY"):
+            date = oneweekago
+            title = """Weekly Ranking 每周排行榜
+""" + oneweekago.strftime("%Y-%m-%d") + " ~ " + + today.strftime("%Y-%m-%d")
+        elif (type == "MONTHLY"):
+            date = onemonthago
+            title = """Monthly Ranking 月度排行榜
+""" + onemonthago.strftime("%Y-%m")
+        elif (type == "YEARLY"):
+            date = oneyearago
+            title = """Annual Ranking 年度排行榜
+""" + oneyearago.strftime("%Y")
+
+
+        if (date != None):
+
+            print("Fetching video stats...")
+
+            self.update_stat_after(date.strftime("%Y%m%d"), tableName)
+            
+            c, conn = self.connect_DB()
+
+            c.execute("""SELECT title, user_display, chat_id, likes, views, likes * 20 + views as heats FROM """ + tableName + " WHERE date >= ? ORDER BY heats DESC", (date.strftime("%Y%m%d"),))
+            entries = c.fetchmany(10)
+
+            # c.execute("""SELECT title, user_display, chat_id, views FROM """ + tableName + " WHERE date >= ? ORDER BY views DESC", (date.strftime("%Y%m%d"),))
+            # entries_views = c.fetchmany(5)
+
+            self.close_DB(conn)
+
+            self.send_ranking(title, entries)
+
+
 if __name__ == '__main__':
     args = sys.argv
 
     def usage():
         print("""
-Usage: python {} <option>
-option can be:
+Usage: python {} <mode> <option>
+mode can be:
 \t -n/normal: normal mode
 \t -e/ecchi: ecchi mode (NSFW)
-\t \t -n/-e dlsub: download the latest page of your subscription list
-\t \t -n/-e dlnew: download the latest page of the new videos
+option can be:
+\t dlsub: download the latest page of your subscription list
+\t dlnew: download the latest page of the new videos
+\t rank -d/-w/-m/-y: send daily/weekly/monthly/annually ranking of your database
+
         """.format(args[0]))
         exit(1)
 
-    if (len(args) < 2 or len(args) > 3): usage()
+    if (len(args) < 2 or len(args) > 4): usage()
 
     if (args[1] == "-n" or args[1] == "normal"): bot = IwaraTgBot()
     elif (args[1] == "-e" or args[1] == "ecchi"): bot = IwaraTgBot(ecchi = True)
@@ -448,4 +530,10 @@ option can be:
 
     if (args[2] == "dlsub"): bot.download_sub()
     elif (args[2] == "dlnew"): bot.download_new()
+    elif (args[2] == "rank"):
+        if (args[3] == "-d"): bot.ranking("DAILY")
+        elif (args[3] == "-w"): bot.ranking("WEEKLY")
+        elif (args[3] == "-m"): bot.ranking("MONTHLY")
+        elif (args[3] == "-y"): bot.ranking("YEARLY")
+        else: usage()
     else: usage()

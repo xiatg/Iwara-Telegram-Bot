@@ -7,27 +7,19 @@ Iwara-Telegram-Bot: your ultimate [Python-Telegram-Bot](https://github.com/pytho
 https://t.me/Iwara1
 
 ## Features
-```
-Usage: python {} <mode> <request>
-mode can be:
--n/normal: normal mode
--e/ecchi: ecchi mode (NSFW)
-request can be:
-dlsub: download the latest page of your subscription list
-dlnew: download the latest page of the new videos
-```
-
 <!-- ✅ - Published  
 🚧 - In Progress  
 💡 - Planned   -->
 
-1. ✅ `dlsub` - Download Subscribed
+1. `dlsub` - Download Subscribed
    - Send all videos in the first page of [From people you follow](https://iwara.tv/subscriptions) to a Telegram **chat**.
    - Maintain a `IwaraTgDB.db` to track all videos that have already been sent to the chat.
-2. ✅ `dlnew` - Download New
+2. `dlnew` - Download New
    - Send all videos in the first page of [Recent videos](https://www.iwara.tv/videos) to a Telegram **channel**.
    - Maintain a `IwaraTgDB.db` to track all videos that have already been sent to the channel.
    - Add the video description to the comment section of the post.
+3. `rank` - Get Ranking
+   - Send the daily/weekly/monthly/annually ranking of all the videos in your database.
 
 ## Deployment
 
@@ -49,14 +41,23 @@ dlnew: download the latest page of the new videos
 ### macOS, Ubuntu
 
 1. Clone the repository
-```
+```shell
 git clone https://github.com/watanabexia/Iwara-Telegram-Bot
 ```
 2. Install the dependencies
-```
+```shell
 pip install -r requirements.txt
 ```
-3. Create a file named `config.json` inside the repository folder `Iwara-Telegram-Bot`, with the following content:
+3. run the local Telegram Bot API server
+
+⚠️ The following command is for reference only. The actual path for your Telegram Bot Api server depends on how you build it.
+```shell
+cd telegram-bot-api/build/telegram-bot-api/bin
+./telegram-bot-api -api-id=<App_api_id> -api-hash=<App_api_hash>
+```
+By default, the Telegram Bot API server is running on port `8081`. In this case, the Telegram Bot API server url is `http://0.0.0.0:8081/bot`.
+
+1. Create a file named `config.json` inside the repository folder `Iwara-Telegram-Bot`, with the following content:
 ```json
 {
     "user_info" : {
@@ -67,17 +68,19 @@ pip install -r requirements.txt
         "token" : <Your Bot API Token>,
         "chat_id" : <The chat ID of your bot or channel>,
         "chat_id_discuss": <The chat ID of the linked discussion group>,
-        "APIServer" : <Your Bot API Server url>
+        "ranking_id" : <The chat ID of your bot or channel>,
+        "APIServer" : <Your Telegram Bot API server url>
     }
 }
 ```
-4. Bon Appétit
-```
-Usage: python {} <mode> <request>
+1. Bon Appétit
+```shell
+Usage: python {} <mode> <option>
 mode can be:
 -n/normal: normal mode
 -e/ecchi: ecchi mode (NSFW)
-request can be:
+option can be:
 dlsub: download the latest page of your subscription list
 dlnew: download the latest page of the new videos
+rank -d/-w/-m/-y: send daily/weekly/monthly/annually ranking of your database
 ```
