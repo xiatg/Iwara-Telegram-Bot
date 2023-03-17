@@ -157,3 +157,8 @@ cython_debug/
 *.ipynb
 .idea
 *.db
+
+# workspace
+test.*
+api_monitor.py
+errorlog.txt

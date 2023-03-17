@@ -1,4 +1,4 @@
-# Iwara-Telegram-Bot
+# Iwara Telegram Bot
 
 Iwara-Telegram-Bot: your ultimate [Python-Telegram-Bot](https://github.com/python-telegram-bot/python-telegram-bot) that connects [iwara.tv](https://iwara.tv/) and [Telegram](https://telegram.org/).
 
@@ -19,7 +19,7 @@ https://t.me/Iwara1
    - Maintain a `IwaraTgDB.db` to track all videos that have already been sent to the channel.
    - Add the video description to the comment section of the post.
 3. `rank` - Get Ranking
-   - Send the daily/weekly/monthly/annually ranking of all the videos in your database.
+   - Send the daily/weekly/monthly/annually ranking of all the videos in `IwaraTgDB.db`.
 
 ## Deployment
 
@@ -57,7 +57,7 @@ cd telegram-bot-api/build/telegram-bot-api/bin
 ```
 By default, the Telegram Bot API server is running on port `8081`. In this case, the Telegram Bot API server url is `http://0.0.0.0:8081/bot`.
 
-1. Create a file named `config.json` inside the repository folder `Iwara-Telegram-Bot`, with the following content:
+4. Create a file named `config.json` inside the repository folder `Iwara-Telegram-Bot`, with the following content:
 ```json
 {
     "user_info" : {
@@ -73,7 +73,7 @@ By default, the Telegram Bot API server is running on port `8081`. In this case,
     }
 }
 ```
-1. Bon Appétit
+5. Bon Appétit
 ```shell
 Usage: python {} <mode> <option>
 mode can be:

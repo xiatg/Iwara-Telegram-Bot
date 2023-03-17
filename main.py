@@ -1,40 +1,29 @@
 import os
 import sys
 import json
-import re
 import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import sqlite3
 
-import requests
-from bs4 import BeautifulSoup
 from telegram.ext import Updater
 import cv2
 
+from typing import Optional, List
+
+from api_client import ApiClient
+
 class IwaraTgBot:
     def __init__(self, ecchi = False):
-        self.headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36',
-        }
-
-        if (ecchi):
-            self.loginUrl ='https://ecchi.iwara.tv/user/login'
-            self.subUrl = 'https://ecchi.iwara.tv/subscriptions'
-            self.videoUrl = 'https://ecchi.iwara.tv/videos'
-            self.userUrl =  'https://ecchi.iwara.tv/users'
-            self.videoAPIUrl = 'https://ecchi.iwara.tv/api/video'
-            self.newUrl = 'https://ecchi.iwara.tv/videos-3'
-        else:
-            self.loginUrl ='https://iwara.tv/user/login'
-            self.subUrl = 'https://iwara.tv/subscriptions'
-            self.videoUrl = 'https://iwara.tv/videos'
-            self.userUrl =  'https://iwara.tv/users'
-            self.videoAPIUrl = 'https://iwara.tv/api/video'
-            self.newUrl = 'https://iwara.tv/videos-3'
+        self.rating = "ecchi" if ecchi else "general"
 
         #Load Config
         self.config = json.load(open("config.json"))
+        self.videoUrl = "https://iwara.tv/video"
+        self.userUrl = "https://iwara.tv/profile"
+
+        #Setup Iwara API Client
+        self.client = ApiClient(self.config["user_info"]["user_name"], self.config["user_info"]["password"])
 
         #Init DB
         self.DBpath = "IwaraTgDB.db"
@@ -46,35 +35,15 @@ class IwaraTgBot:
         botInfo = self.bot.getMe()
         print("Connected to telegram bot: " + botInfo.first_name)
 
-        #Main Session
-        self.session = requests.Session()
-
     def login(self):
         """ Login to iwara.tv """
 
-        def get_login_key(html):
-            fullpage = BeautifulSoup(html, "html.parser")
-            h = fullpage.find("head")
-            capture = h.find("script", text=re.compile("antibot")).string.strip()
-            start = capture.find("\"key\":") + 7 # "key":"
-            end   = capture.find("\"", start)
-            return capture[start:end]
-
-
-        loginPageHtml = requests.get(self.loginUrl, headers=self.headers).text
-        
-        data = {
-            'name':self.config["user_info"]["user_name"],
-            'pass':self.config["user_info"]["password"],
-            'form_build_id':'form-dummy',
-            'form_id':'user_login',
-            'antibot_key': get_login_key(loginPageHtml),
-            'op': "ログイン",
-        }
-
         #Login
         print("Logging in...")
-        self.session.post(self.loginUrl, data=data, headers=self.headers)
+        r = self.client.login()
+
+        #Debug
+        print(r)
 
     def connect_DB(self):
         conn = sqlite3.connect(self.DBpath)
@@ -128,126 +97,63 @@ class IwaraTgBot:
         return result
 
     def get_video_info(self, id):
+        """# Extract video info from video object
         """
-        Get video info by id.
-        The info is returned as a list.
+
+        video = self.client.get_video(id).json()
+
+        title = video["title"]
+        user = video["user"]['username']
+        user_display = video["user"]['name']
+        description = video['body']
+        tags = [user_display]
+        for tag in video["tags"]:
+            tags.append(tag["id"])
+
+        thumbFileName = video["id"] + ".jpg"
+
+        return [title, user, user_display, description, tags, thumbFileName]
+
+    def get_video_stat(self, video):
+        """# Extract video stats from video object
         """
-        videoHTML = self.session.get(self.videoUrl + '/' + id, headers = self.headers).text
-        videoPage = BeautifulSoup(videoHTML, "html.parser")
 
-        uploadInfo = videoPage.find("div", class_ = "submitted")
-        title = uploadInfo.find("h1", class_ = "title").string
-        userA = uploadInfo.find("a", class_ = "username")
-        user_display = userA.string
-        user = userA.get("href").split("/")[-1].split("?")[0]
-
-        description = videoPage.find("div", class_ = "field-item even").text
-
-        a_tags = videoPage.find_all("a")
-
-        v_tags = [user_display.replace(' ', '_').replace('\u3000', '_')]
-        for tag in a_tags:
-            if tag.get("href") != None:
-                if "categories" in tag.get("href"):
-                    v_tag = tag.string.replace(' ', '_')
-                    v_tags.append(v_tag)
-
-        try:
-            thumbUrl = "http:" + videoPage.find(id = "video-player").get("poster")
-        except:
-            print("The video is hosted by YouTube. No thumbnail is available on iwara.tv.")
-        
-        thumbFileName = id + ".jpg"
-
-        if (os.path.exists(thumbFileName)):
-            print("Thumbnail ID {} Already downloaded, skipped downloading. ".format(id))
-        else:
-            try:
-                print("Downloading thumbnail for video ID: {} from {}...".format(id, thumbUrl))
-                with open(thumbFileName, "wb") as f:
-                            for chunk in requests.get(thumbUrl, headers = self.headers).iter_content(chunk_size=1024):
-                                if chunk:
-                                    f.write(chunk)
-                                    f.flush()
-            except:
-                print("Failed to download thumbnail. Skipping...")
-                if (os.path.exists(thumbFileName)):
-                    os.remove(thumbFileName)
-
-        return [title, user, user_display, description, v_tags, thumbFileName]
-
-    def get_video_stat(self, id):
-        """
-        Get video stat by id.
-        The stat is returned as a list.
-        """
-        videoHTML = self.session.get(self.videoUrl + '/' + id, headers = self.headers).text
-        videoPage = BeautifulSoup(videoHTML, "html.parser")
-
-        stats = videoPage.find("div", class_ = "node-views").text.replace("\n", "").replace("\t", "").replace(",", "").split(" ")
-        likes = int(stats[1])
-        views = int(stats[2])
+        likes = int(video['numLikes'])
+        views = int(video['numViews'])
 
         return [likes, views]
 
-    def find_videos(self, html):
-        fullpage = BeautifulSoup(html, "html.parser")
-        videoPreviews = fullpage.find_all("div", class_ = "node node-video node-teaser node-teaser clearfix")
+    def find_videos(self, subscribed = False) -> List:
+        print("Finding videos... (rating: {}, subscribed: {})".format(self.rating, subscribed))
 
-        ids = set()
-        for videoPreview in videoPreviews:
+        if (subscribed and self.client.token == None):
+            raise Exception("Not logged in!")
             
-            a_tags = videoPreview.find_all("a")
+        return self.client.get_videos(sort = 'date', rating = self.rating, subscribed = subscribed).json()['results']
 
-            for tag in a_tags:
-                if "/videos/" in tag.get("href"):
-                    id = tag.get("href").split("/")[-1].split("?")[0]
-                    ids.add(id)
-
-        return ids
-
-    def download_video(self, id):
-
-        resourceInfos = json.loads(self.session.get(self.videoAPIUrl + "/" + id, headers = self.headers).text)
-
-        for resourceInfo in resourceInfos:
-
-            if resourceInfo["resolution"] == "Source":
-
-                link = "https:" + resourceInfo["uri"]
-                file_type = resourceInfo["mime"][6:] # Exclude "video/"
-
-                videoFileName = id + '.' + file_type
-                
-                if (os.path.exists(videoFileName)):
-                    print("Video ID {} Already downloaded, skipped downloading. ".format(id))
-                    break
-
-                print("Downloading video ID: {} ...".format(id))
-                with open(videoFileName, "wb") as f:
-                    for chunk in requests.get(link, headers = self.headers).iter_content(chunk_size=1024):
-                        if chunk:
-                            f.write(chunk)
-                            f.flush()
-                break
+    def download_video(self, id) -> Optional[str]:
         try:
-            return videoFileName
+            print("Downloading video {}...".format(id))
+            return self.client.download_video(id)
+        except: # Download Failed
+            print("Download failed: {}".format(id))
+            return None
+
+    def download_video_thumbnail(self, id) -> Optional[str]:
+        try:
+            return self.client.download_video_thumbnail(id)
         except: # Download Failed
             return None
 
-    def get_youtube_id(self, id):
-        videoHTML = self.session.get(self.videoUrl + '/' + id, headers = self.headers).text
-        videoPage = BeautifulSoup(videoHTML, "html.parser")
-        video_frame = videoPage.find("iframe")
-        video_source = video_frame.get("src")
-        start = video_source.find("embed/") + 6
-        end = video_source.find("?")
-        video_id = video_source[start:end]
-        return video_id
+    def get_youtube_link(self, video) -> Optional[str]:
+        try:
+            return video["embedUrl"]
+        except:
+            return None
         
-    def send_yt_link(self, yt_id, id = "", title = "", user = "", user_display = "", description = "", v_tags = []):
+    def send_yt_link(self, yt_link, id = "", title = "", user = "", user_display = "", description = "", v_tags = []):
         
-        yt_link = "https://www.youtube.com/watch?v=" + yt_id
+        # yt_link = "https://www.youtube.com/watch?v=" + yt_id
 
         caption = yt_link + """
 <a href="{}/{}/">{}</a>
@@ -318,11 +224,17 @@ by: <a href="{}/{}/">{}</a>
         msg_t = self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = "Getting message ID...")
         self.bot.delete_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], message_id= msg_t.message_id)
 
+        #Debug
         print(msg_t.message_id)
+
+        print(description)
 
         msg_description = """
 <a href="{}/{}/">{}</a> said:
-""".format(self.userUrl, user, user_display) + description
+""".format(self.userUrl, user, user_display) + ("" if (description == None) else description)
+
+        #Debug
+        print(msg_description)
 
         self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = msg_description, parse_mode = "HTML", reply_to_message_id=msg_t.message_id - 1)
 
@@ -333,32 +245,42 @@ by: <a href="{}/{}/">{}</a>
         entries = c.fetchall()
 
         for (id,) in entries:
-
             try:
-                (likes, views) = self.get_video_stat(id)
+                #Debug
+                print("Updating video ID {}".format(id))
+
+                video = self.client.get_video(id).json()
+
+                #Debug
+                print(video)
+
+                (likes, views) = self.get_video_stat(video)
+
+                #Debug
+                print(id)
+                print(likes, views)
+
                 c.execute("""UPDATE """ + tableName + " SET likes = ?, views = ? WHERE id = ?", (likes, views, id))
-            except:
+            except Exception as e:
+                print("Error: {}".format(e))
                 pass
 
         self.close_DB(conn)
 
-    def download_new(self):
+    def download(self, subscribed = False):
 
-        tableName = "videosNew"
+        tableName = "videosNew" if subscribed == False else "videosSub"
 
         self.init_DB(tableName)
         
         self.login()
 
-        #Get page
-        print("Getting page...")
-        html = self.session.get(self.newUrl, headers = self.headers).text
-
-        #Find videos
-        ids = self.find_videos(html)
+        videos = self.find_videos(subscribed = subscribed)
 
         #Download videos
-        for id in ids:
+        for video in videos:
+
+            id = video['id']
 
             print("Found video ID {}".format(id))
 
@@ -368,80 +290,41 @@ by: <a href="{}/{}/">{}</a>
 
             video_info = self.get_video_info(id)
 
-            yt_id = None
+            print("[DEBUG] Video ID {} Info: ".format(id))
+            print(video_info)
 
-            try: # if the video is hosted on YouTube
-                yt_id = self.get_youtube_id(id)
-            except:
-                videoFileName = self.download_video(id)
-
-                if (videoFileName == None):
-                    print("Video ID {} Download failed, skipped. ".format(id))
-                    continue
+            yt_link = self.get_youtube_link(video)
 
             title = video_info[0]
             user = video_info[1]
             user_display = video_info[2]
             description = video_info[3]
             v_tags = video_info[4]
-            thumbFileName = video_info[5]
 
-            if (yt_id == None):
+            if (yt_link == None):
+                videoFileName = self.download_video(id)
+
+                if (videoFileName == None):
+                    print("Video ID {} Download failed, skipped. ".format(id))
+                    continue
+
+                thumbFileName = self.download_video_thumbnail(id)
+
+                if (thumbFileName == None):
+                    print("Video ID {} Thumbnail Download failed, skipped. ".format(id))
+                    continue
+
                 msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
             else:
-                msg_id = self.send_yt_link(yt_id, id, title, user, user_display, description, v_tags)
+
+                msg_id = self.send_yt_link(yt_link, id, title, user, user_display, description, v_tags)
 
             self.save_video_info(tableName, id, title, user, user_display, msg_id)
 
             time.sleep(5) # Wait for telegram to forward the video to the group
-            self.send_description(user = user, user_display = user_display, description = description)
 
-    def download_sub(self):
-
-        tableName = "videosSub"
-
-        self.init_DB(tableName)
-
-        self.login()
-
-        #Finding Videos
-        subPageHtml = self.session.get(self.subUrl, headers = self.headers).text
-        ids = self.find_videos(subPageHtml)
-
-        for id in ids:
-            
-            print("Found video ID {}".format(id))
-
-            if (self.is_video_exist(tableName, id)):
-                print("Video ID {} Already sent, skipped. ".format(id))
-                continue
-
-            video_info = self.get_video_info(id)
-            
-            yt_id = None
-
-            try: # if the video is hosted on YouTube
-                yt_id = self.get_youtube_id(id)
-            except:
-                videoFileName = self.download_video(id)
-
-                if (videoFileName == None):
-                    print("Video ID {} Download failed, skipped. ".format(id))
-                    continue
-
-            title = video_info[0]
-            user = video_info[1]
-            user_display = video_info[2]
-            description = video_info[3]
-            v_tags = video_info[4]
-            thumbFileName = video_info[5]
-
-            if (yt_id == None):
-                msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
-            else:
-                msg_id = self.send_yt_link(yt_id, id, title, user, user_display, description, v_tags)
-            
-            self.save_video_info(tableName, id, title, user, user_display, None)
+            if "chat_id_discuss" in self.config["telegram_info"]:
+                self.send_description(user = user, user_display = user_display, description = description)
 
     def send_ranking(self, title, entries):
 
@@ -475,7 +358,7 @@ Top {i} ❤️{likes} 🔥{views}
         elif (type == "WEEKLY"):
             date = oneweekago
             title = """Weekly Ranking 每周排行榜
-""" + oneweekago.strftime("%Y-%m-%d") + " ~ " + + today.strftime("%Y-%m-%d")
+""" + oneweekago.strftime("%Y-%m-%d") + " ~ " + today.strftime("%Y-%m-%d")
         elif (type == "MONTHLY"):
             date = onemonthago
             title = """Monthly Ranking 月度排行榜
@@ -484,9 +367,11 @@ Top {i} ❤️{likes} 🔥{views}
             date = oneyearago
             title = """Annual Ranking 年度排行榜
 """ + oneyearago.strftime("%Y")
-
+            
 
         if (date != None):
+
+            self.login()
 
             print("Fetching video stats...")
 
@@ -528,8 +413,8 @@ option can be:
     elif (args[1] == "-e" or args[1] == "ecchi"): bot = IwaraTgBot(ecchi = True)
     else: usage()
 
-    if (args[2] == "dlsub"): bot.download_sub()
-    elif (args[2] == "dlnew"): bot.download_new()
+    if (args[2] == "dlsub"): bot.download(subscribed=True)
+    elif (args[2] == "dlnew"): bot.download()
     elif (args[2] == "rank"):
         if (args[3] == "-d"): bot.ranking("DAILY")
         elif (args[3] == "-w"): bot.ranking("WEEKLY")
