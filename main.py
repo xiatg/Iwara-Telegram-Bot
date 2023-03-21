@@ -35,15 +35,19 @@ class IwaraTgBot:
         botInfo = self.bot.getMe()
         print("Connected to telegram bot: " + botInfo.first_name)
 
-    def login(self):
+    def login(self) -> bool:
         """ Login to iwara.tv """
 
         #Login
         print("Logging in...")
         r = self.client.login()
 
-        #Debug
-        print(r)
+        if r.status_code == 200:
+            print("Login success")
+            return True
+        else:
+            print("Login failed")
+            return False
 
     def connect_DB(self):
         conn = sqlite3.connect(self.DBpath)
@@ -100,7 +104,10 @@ class IwaraTgBot:
         """# Extract video info from video object
         """
 
-        video = self.client.get_video(id).json()
+        try:
+            video = self.client.get_video(id).json()
+        except Exception as e:
+            raise e
 
         title = video["title"]
         user = video["user"]['username']
@@ -129,14 +136,22 @@ class IwaraTgBot:
         if (subscribed and self.client.token == None):
             raise Exception("Not logged in!")
             
-        return self.client.get_videos(sort = 'date', rating = self.rating, subscribed = subscribed).json()['results']
+        videos = []
+
+        for page in range(10):
+            try:
+                videos += (self.client.get_videos(sort = 'date', rating = self.rating, page = page, subscribed = subscribed).json()['results'])
+            except Exception as e:
+                print("Error: {}".format(e))
+
+        return videos
 
     def download_video(self, id) -> Optional[str]:
         try:
             print("Downloading video {}...".format(id))
             return self.client.download_video(id)
-        except: # Download Failed
-            print("Download failed: {}".format(id))
+        except Exception as e: # Download Failed
+            print("Download Failed: {}".format(e))
             return None
 
     def download_video_thumbnail(self, id) -> Optional[str]:
@@ -174,51 +189,47 @@ by: <a href="{}/{}/">{}</a>
         # Sending video to telegram
         print("Sending video {} to telegram...".format(path))
 
-        cap = cv2.VideoCapture(path)
-        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        duration = frame_count / fps
+        try:
+            cap = cv2.VideoCapture(path)
+            height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            duration = frame_count / fps
 
-        caption = """
+            caption = """
 <a href="{}/{}/">{}</a>
 by: <a href="{}/{}/">{}</a>
 """.format(self.videoUrl, id, title, self.userUrl, user, user_display)
-        for v_tag in v_tags:
-            caption += " #" + v_tag
+            for v_tag in v_tags:
+                caption += " #" + v_tag
 
-        print(caption)
+            print(caption)
 
-        msg = None
+            msg = None
 
-        if (os.path.exists(thumbPath) == False):
             msg = self.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
-                                video = open(path, 'rb'), 
-                                supports_streaming = True, 
-                                timeout = 300, 
-                                height = height, 
-                                width = width,
-                                duration = duration,
-                                caption = caption,
-                                parse_mode = "HTML")
-        else:
-            msg = self.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
-                                video = open(path, 'rb'), 
-                                supports_streaming = True, 
-                                timeout = 300, 
-                                height = height, 
-                                width = width,
-                                duration = duration,
-                                caption = caption,
-                                thumb = open(thumbPath, 'rb'), # Thumbnail
-                                parse_mode = "HTML")
+                                    video = open(path, 'rb'), 
+                                    supports_streaming = True, 
+                                    timeout = 300, 
+                                    height = height, 
+                                    width = width,
+                                    duration = duration,
+                                    caption = caption,
+                                    thumb = open(thumbPath, 'rb'), # Thumbnail
+                                    parse_mode = "HTML")
+            
+            #Delete the video form server
             os.remove(thumbPath)
+            os.remove(path)
 
-        #Delete the video form server
-        os.remove(path)
-
-        return msg.message_id
+            return msg.message_id
+        
+        except Exception as e:
+            #Delete the video form server
+            os.remove(thumbPath)
+            os.remove(path)
+            raise e
 
     def send_description(self, user, user_display, description):
         msg_t = self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = "Getting message ID...")
@@ -273,7 +284,9 @@ by: <a href="{}/{}/">{}</a>
 
         self.init_DB(tableName)
         
-        self.login()
+        if (not self.login()):
+            print("Login Failed")
+            return
 
         videos = self.find_videos(subscribed = subscribed)
 
@@ -288,7 +301,11 @@ by: <a href="{}/{}/">{}</a>
                 print("Video ID {} Already sent, skipped. ".format(id))
                 continue
 
-            video_info = self.get_video_info(id)
+            try:
+                video_info = self.get_video_info(id)
+            except Exception as e:
+                print("Error in getting video info: {}".format(e))
+                continue
 
             print("[DEBUG] Video ID {} Info: ".format(id))
             print(video_info)
@@ -314,7 +331,11 @@ by: <a href="{}/{}/">{}</a>
                     print("Video ID {} Thumbnail Download failed, skipped. ".format(id))
                     continue
 
-                msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
+                try:
+                    msg_id = self.send_video(videoFileName, id, title, user, user_display, description, v_tags, thumbFileName)
+                except Exception as e:
+                    print("Error in sending video: {}".format(e))
+                    continue
             else:
 
                 msg_id = self.send_yt_link(yt_link, id, title, user, user_display, description, v_tags)

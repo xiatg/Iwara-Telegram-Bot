@@ -1,6 +1,6 @@
 # Iwara Telegram Bot
 
-Iwara-Telegram-Bot: your ultimate [Python-Telegram-Bot](https://github.com/python-telegram-bot/python-telegram-bot) that connects [iwara.tv](https://iwara.tv/) and [Telegram](https://telegram.org/).
+Iwara Telegram Bot: your ultimate [Python-Telegram-Bot](https://github.com/python-telegram-bot/python-telegram-bot) that connects [iwara.tv](https://iwara.tv/) and [Telegram](https://telegram.org/).
 
 ## Demo
 
