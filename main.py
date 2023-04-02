@@ -156,8 +156,10 @@ class IwaraTgBot:
 
     def download_video_thumbnail(self, id) -> Optional[str]:
         try:
+            print("Downloading thumbnail for video {}...".format(id))
             return self.client.download_video_thumbnail(id)
-        except: # Download Failed
+        except Exception as e: # Download Failed
+            print("Download Thumbnail Failed: {}".format(e))
             return None
 
     def get_youtube_link(self, video) -> Optional[str]:
