@@ -192,9 +192,9 @@ by: <a href="{}/{}/">{}</a>
         print("Sending video {} to telegram...".format(path))
 
         try:
-            chat_id = self.config["telegram_info"]["chat_id"]
+            chat_ad = self.config["telegram_info"]["chat_ad"]
         except:
-            chat_id = ""
+            chat_ad = ""
 
         try:
             cap = cv2.VideoCapture(path)
@@ -207,8 +207,10 @@ by: <a href="{}/{}/">{}</a>
             caption = """
 <a href="{}/{}/">{}</a>
 by: <a href="{}/{}/">{}</a>
+
 {}
-""".format(self.videoUrl, id, title, self.userUrl, user, user_display, chat_id)
+
+""".format(self.videoUrl, id, title, self.userUrl, user, user_display, chat_ad)
             for v_tag in v_tags:
                 caption += " #" + v_tag
 
