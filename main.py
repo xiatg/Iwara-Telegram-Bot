@@ -179,8 +179,6 @@ by: <a href="{}/{}/">{}</a>
         for v_tag in v_tags:
             caption += " #" + v_tag
 
-        print(caption)
-
         msg = None
 
         try:
@@ -216,8 +214,6 @@ by: <a href="{}/{}/">{}</a>
 """.format(self.videoUrl, id, title, self.userUrl, user, user_display, chat_ad)
             for v_tag in v_tags:
                 caption += " #" + v_tag
-
-            print(caption)
 
             msg = None
 
@@ -311,7 +307,7 @@ by: <a href="{}/{}/">{}</a>
         videos = self.find_videos(subscribed = subscribed)
 
         #Download videos
-        for video in videos:
+        for video in reversed(videos):
 
             id = video['id']
 
