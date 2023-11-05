@@ -183,7 +183,10 @@ by: <a href="{}/{}/">{}</a>
 
         msg = None
 
-        msg = self.bot.send_message(chat_id = self.config["telegram_info"]["chat_id"], text = caption, parse_mode = "HTML")
+        try:
+            msg = self.bot.send_message(chat_id = self.config["telegram_info"]["chat_id"], text = caption, parse_mode = "HTML")
+        except:
+            msg = self.bot.send_message(chat_id = self.config["telegram_info"]["chat_id"], text = caption)
 
         return msg.message_id
 
@@ -218,16 +221,28 @@ by: <a href="{}/{}/">{}</a>
 
             msg = None
 
-            msg = self.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
-                                    video = open(path, 'rb'), 
-                                    supports_streaming = True, 
-                                    timeout = 300, 
-                                    height = height, 
-                                    width = width,
-                                    duration = duration,
-                                    caption = caption,
-                                    thumb = open(thumbPath, 'rb'), # Thumbnail
-                                    parse_mode = "HTML")
+            try:
+                msg = self.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
+                                        video = open(path, 'rb'), 
+                                        supports_streaming = True, 
+                                        timeout = 300, 
+                                        height = height, 
+                                        width = width,
+                                        duration = duration,
+                                        caption = caption,
+                                        thumb = open(thumbPath, 'rb'), # Thumbnail
+                                        parse_mode = "HTML")
+            except:
+                msg = self.bot.send_video(chat_id=self.config["telegram_info"]["chat_id"], 
+                                        video = open(path, 'rb'), 
+                                        supports_streaming = True, 
+                                        timeout = 300, 
+                                        height = height, 
+                                        width = width,
+                                        duration = duration,
+                                        caption = caption,
+                                        thumb = open(thumbPath, 'rb'), # Thumbnail
+                                        )
             
             #Delete the video form server
             os.remove(thumbPath)
@@ -245,19 +260,14 @@ by: <a href="{}/{}/">{}</a>
         msg_t = self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = "Getting message ID...")
         self.bot.delete_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], message_id= msg_t.message_id)
 
-        #Debug
-        print(msg_t.message_id)
-
-        print(description)
-
         msg_description = """
 <a href="{}/{}/">{}</a> said:
 """.format(self.userUrl, user, user_display) + ("" if (description == None) else description)
 
-        #Debug
-        print(msg_description)
-
-        self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = msg_description, parse_mode = "HTML", reply_to_message_id=msg_t.message_id - 1)
+        try:
+            self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = msg_description, parse_mode = "HTML", reply_to_message_id=msg_t.message_id - 1)
+        except:
+            self.bot.send_message(chat_id=self.config["telegram_info"]["chat_id_discuss"], text = msg_description, reply_to_message_id=msg_t.message_id - 1)
 
     def update_stat_after(self, date, tableName):
         c, conn = self.connect_DB()
@@ -368,7 +378,10 @@ by: <a href="{}/{}/">{}</a>
 Top {i} ❤️{likes} 🔥{views}
 <a href="https://t.me/iwara2/{chat_id}">{title}</a> by {user_display}"""
 
-        self.bot.send_message(chat_id=self.config["telegram_info"]["ranking_id"], text = ranking_description, parse_mode = "HTML")
+        try:
+            self.bot.send_message(chat_id=self.config["telegram_info"]["ranking_id"], text = ranking_description, parse_mode = "HTML")
+        except:
+            self.bot.send_message(chat_id=self.config["telegram_info"]["ranking_id"], text = ranking_description)
 
     def ranking(self, type = "DAILY"):
 
