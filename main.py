@@ -11,7 +11,7 @@ import cv2
 
 from typing import Optional, List
 
-from api_client import ApiClient
+from api.api_client import ApiClient
 
 class IwaraTgBot:
     def __init__(self, ecchi = False):
