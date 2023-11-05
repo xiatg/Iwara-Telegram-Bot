@@ -172,10 +172,18 @@ class IwaraTgBot:
         
         # yt_link = "https://www.youtube.com/watch?v=" + yt_id
 
+        try:
+            chat_ad = self.config["telegram_info"]["chat_ad"]
+        except:
+            chat_ad = ""
+
         caption = yt_link + """
 <a href="{}/{}/">{}</a>
 by: <a href="{}/{}/">{}</a>
-""".format(self.videoUrl, id, title, self.userUrl, user, user_display)
+
+{}
+
+""".format(self.videoUrl, id, title, self.userUrl, user, user_display, chat_ad)
         for v_tag in v_tags:
             caption += " #" + v_tag
 
