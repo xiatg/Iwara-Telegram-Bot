@@ -1,3 +1,4 @@
 opencv_python==4.6.0.66
 python_telegram_bot==13.13
 requests==2.28.1
+python-dateutil==2.8.2
