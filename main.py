@@ -138,7 +138,7 @@ class IwaraTgBot:
             
         videos = []
 
-        for page in range(10):
+        for page in range(5):
             try:
                 videos += (self.client.get_videos(sort = 'date', rating = self.rating, page = page, subscribed = subscribed).json()['results'])
             except Exception as e:
@@ -180,9 +180,7 @@ class IwaraTgBot:
         caption = yt_link + """
 <a href="{}/{}/">{}</a>
 by: <a href="{}/{}/">{}</a>
-
 {}
-
 """.format(self.videoUrl, id, title, self.userUrl, user, user_display, chat_ad)
         for v_tag in v_tags:
             caption += " #" + v_tag
@@ -216,9 +214,7 @@ by: <a href="{}/{}/">{}</a>
             caption = """
 <a href="{}/{}/">{}</a>
 by: <a href="{}/{}/">{}</a>
-
 {}
-
 """.format(self.videoUrl, id, title, self.userUrl, user, user_display, chat_ad)
             for v_tag in v_tags:
                 caption += " #" + v_tag
