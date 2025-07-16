@@ -367,6 +367,8 @@ by: <a href="{}/{}/">{}</a>
             if "chat_id_discuss" in self.config["telegram_info"]:
                 self.send_description(user = user, user_display = user_display, description = description)
 
+            time.sleep(10) # Avoid hitting the API rate limit
+
     def send_ranking(self, title, entries):
 
         ranking_description = f"""#{title}
@@ -425,9 +427,6 @@ Top {i} ❤️{likes} 🔥{views}
 
             c.execute("""SELECT title, user_display, chat_id, likes, views, likes * 20 + views as heats FROM """ + tableName + " WHERE date >= ? ORDER BY heats DESC", (date.strftime("%Y%m%d"),))
             entries = c.fetchmany(10)
-
-            # c.execute("""SELECT title, user_display, chat_id, views FROM """ + tableName + " WHERE date >= ? ORDER BY views DESC", (date.strftime("%Y%m%d"),))
-            # entries_views = c.fetchmany(5)
 
             self.close_DB(conn)
 
