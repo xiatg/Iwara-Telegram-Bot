@@ -110,15 +110,15 @@ class IwaraTgBot:
         user = video["user"]['username']
         user_display = video["user"]['name']
         description = video['body']
+
         tags = [user_display]
         for tag in video["tags"]:
             tags.append(tag["id"])
 
-        thumbFileName = video["id"] + ".jpg"
         likes = int(video['numLikes'])
         views = int(video['numViews'])
 
-        return [title, user, user_display, description, tags, thumbFileName, likes, views]
+        return [title, user, user_display, description, tags, likes, views]
 
     def find_videos(self, subscribed = False) -> List:
         print("Finding videos... (rating: {}, subscribed: {})".format(self.rating, subscribed))
@@ -292,8 +292,8 @@ by: <a href="{}/{}/">{}</a>
                 #Debug
                 print(video_info)
 
-                likes = video_info[6]
-                views = video_info[7]
+                likes = video_info[5]
+                views = video_info[6]
 
                 #Debug
                 print(id)
@@ -347,6 +347,8 @@ by: <a href="{}/{}/">{}</a>
             user_display = video_info[2]
             description = video_info[3]
             v_tags = video_info[4]
+            likes = video_info[5]
+            views = video_info[6]
 
             if (yt_link == None):
                 videoFileName = self.download_video(id)
@@ -370,7 +372,7 @@ by: <a href="{}/{}/">{}</a>
 
                 msg_id = self.send_yt_link(yt_link, id, title, user, user_display, description, v_tags)
 
-            self.save_video_info(tableName, id, title, user, user_display, msg_id)
+            self.save_video_info(tableName, id, title, user, user_display, msg_id, views, likes)
 
             time.sleep(5) # Wait for telegram to forward the video to the group
 
