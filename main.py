@@ -51,6 +51,7 @@ class IwaraTgBot:
 
     def connect_DB(self):
         conn = sqlite3.connect(self.DBpath)
+        conn.execute("PRAGMA busy_timeout = 30000")  # Set busy timeout to 30 seconds
         c = conn.cursor()
         return c, conn
     
@@ -278,7 +279,6 @@ by: <a href="{}/{}/">{}</a>
 
     def update_stat_after(self, date, tableName):
         c, conn = self.connect_DB()
-
         c.execute("""SELECT id FROM """ + tableName + " WHERE date >= ?", (date,))
         entries = c.fetchall()
 
@@ -369,17 +369,20 @@ by: <a href="{}/{}/">{}</a>
                     print("Error in sending video: {}".format(e))
                     continue
             else:
-
                 msg_id = self.send_yt_link(yt_link, id, title, user, user_display, description, v_tags)
 
-            self.save_video_info(tableName, id, title, user, user_display, msg_id, views, likes)
+            try:
+                print("Video ID {} sent, saving info...".format(id))
+                self.save_video_info(tableName, id, title, user, user_display, msg_id, views, likes)
+            except Exception as e:
+                print("Error in saving video info to database: {}".format(e))
 
             time.sleep(5) # Wait for telegram to forward the video to the group
 
             if "chat_id_discuss" in self.config["telegram_info"]:
                 self.send_description(user = user, user_display = user_display, description = description)
 
-            time.sleep(10) # Avoid hitting the API rate limit
+            time.sleep(5) # Avoid hitting the API rate limit
 
     def send_ranking(self, title, entries):
 
