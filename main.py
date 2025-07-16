@@ -104,10 +104,7 @@ class IwaraTgBot:
         """# Extract video info from video object
         """
 
-        try:
-            video = self.client.get_video(id).json()
-        except Exception as e:
-            raise e
+        video = self.client.get_video(id).json()
 
         title = video["title"]
         user = video["user"]['username']
@@ -118,17 +115,10 @@ class IwaraTgBot:
             tags.append(tag["id"])
 
         thumbFileName = video["id"] + ".jpg"
-
-        return [title, user, user_display, description, tags, thumbFileName]
-
-    def get_video_stat(self, video):
-        """# Extract video stats from video object
-        """
-
         likes = int(video['numLikes'])
         views = int(video['numViews'])
 
-        return [likes, views]
+        return [title, user, user_display, description, tags, thumbFileName, likes, views]
 
     def find_videos(self, subscribed = False) -> List:
         print("Finding videos... (rating: {}, subscribed: {})".format(self.rating, subscribed))
@@ -211,6 +201,23 @@ by: <a href="{}/{}/">{}</a>
             fps = cap.get(cv2.CAP_PROP_FPS)
             duration = frame_count / fps
 
+            # Actual readable frame count
+            actual_frame_count = 0
+            while True:
+                ret, _ = cap.read()
+                if not ret:
+                    break
+                actual_frame_count += 1
+
+            cap.release()
+
+            print(f"Metadata frame count: {frame_count}")
+            print(f"Actual readable frames: {actual_frame_count}")
+
+            # A mismatch might indicate truncation
+            if actual_frame_count < frame_count:
+                raise Exception("The video file seems to be truncated or corrupted.")
+
             caption = """
 <a href="{}/{}/">{}</a>
 by: <a href="{}/{}/">{}</a>
@@ -280,12 +287,13 @@ by: <a href="{}/{}/">{}</a>
                 #Debug
                 print("Updating video ID {}".format(id))
 
-                video = self.client.get_video(id).json()
+                video_info = self.get_video_info(id)
 
                 #Debug
-                print(video)
+                print(video_info)
 
-                (likes, views) = self.get_video_stat(video)
+                likes = video_info[6]
+                views = video_info[7]
 
                 #Debug
                 print(id)
@@ -294,7 +302,9 @@ by: <a href="{}/{}/">{}</a>
                 c.execute("""UPDATE """ + tableName + " SET likes = ?, views = ? WHERE id = ?", (likes, views, id))
             except Exception as e:
                 print("Error: {}".format(e))
-                pass
+            finally:
+                time.sleep(10) # Avoid hitting the API rate limit
+                
 
         self.close_DB(conn)
 
