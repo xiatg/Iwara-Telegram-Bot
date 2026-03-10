@@ -50,6 +50,8 @@ pip install -r requirements.txt
 ```
 3. run the local Telegram Bot API server
 
+Tip: legacy telegram-bot-api@5d88023dd1e65b7d0926a71aea4487d6cac3bf13
+
 ⚠️ The following command is for reference only. The actual path for your Telegram Bot Api server depends on how you build it.
 ```shell
 cd telegram-bot-api/build/telegram-bot-api/bin
@@ -57,7 +59,7 @@ cd telegram-bot-api/build/telegram-bot-api/bin
 ```
 By default, the Telegram Bot API server is running on port `8081`. In this case, the Telegram Bot API server url is `http://0.0.0.0:8081/bot`.
 
-4. Create a file named `config.json` inside the repository folder `Iwara-Telegram-Bot`, with the following content:
+1. Create a file named `config.json` inside the repository folder `Iwara-Telegram-Bot`, with the following content:
 ```json
 {
     "user_info" : {
@@ -73,7 +75,7 @@ By default, the Telegram Bot API server is running on port `8081`. In this case,
     }
 }
 ```
-5. Bon Appétit
+1. Bon Appétit
 ```shell
 Usage: python {} <mode> <option>
 mode can be:
